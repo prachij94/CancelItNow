@@ -135,7 +135,7 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 for s in active_subs:
                     color = "🔴" if s['priority'] == 'High' else "🟡" if s['priority'] == 'Medium' else "🟢"
                     msg += (f"🔹 <b>{s['name']}</b>\n"
-                           f"   💰 ${s['cost']} / month\n"
+                           f"   💰 ${s['cost']:.2f} / month\n"
                            f"   🏷️ Priority: {color} {s['priority']}\n\n")
             
             # Cancelled subscriptions with strikethrough
@@ -144,10 +144,10 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 total_saved = 0
                 for s in cancelled_subs:
                     total_saved += float(s['cost'])
-                    msg += f"<s>{s['name']} - ${s['cost']}/mo</s> ✅\n"
+                    msg += f"<s>{s['name']} - ${s['cost']:.2f}/mo</s> ✅\n"
                 
-                msg += f"\n💪 <b>Total Monthly Savings: ${total_saved}</b>\n"
-                msg += f"📈 <b>Yearly Savings: ${total_saved * 12}</b>\n"
+                msg += f"\n💪 <b>Total Monthly Savings: ${total_saved:.2f}</b>\n"
+                msg += f"📈 <b>Yearly Savings: ${(total_saved * 12):.2f}</b>\n"
             
             msg += f"\n🧘 <i>Review. Reflect. You're already doing great.</i>\n"
             
@@ -191,7 +191,7 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
         cost = float(context.user_data['cancel_cost'])
         sheet.update_cell(row, 6, "cancelled")
         await query.message.reply_text(
-            f"✅ Subscription '{name}' has been cancelled.\n🎉 You just saved ${cost} monthly! That’s ${cost * 12} per year! 💰\n\n💪 _Keep going — smarter money is your new normal._",parse_mode=ParseMode.MARKDOWN
+            f"✅ Subscription '{name}' has been cancelled.\n🎉 You just saved ${cost} monthly! That’s ${(cost * 12):.2f} per year! 💰\n\n💪 _Keep going — smarter money is your new normal._",parse_mode=ParseMode.MARKDOWN
         )
         await query.message.reply_text("📍 What would you like to do now?", reply_markup=main_menu_kb)
 
@@ -215,8 +215,8 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"📊 Your Subscription Snapshot:\n\n"
                 f"<b>Active Subscriptions:</b>\n"
                 f"• Total Active: {count}\n"
-                f"• Monthly Spend: ${active_total}\n"
-                f"• Yearly Spend: ${active_total * 12}\n\n"
+                f"• Monthly Spend: ${active_total:.2f}\n"
+                f"• Yearly Spend: ${(active_total * 12):.2f}\n\n"
                 f"<b>Priority Breakdown:</b>\n"
                 f"🔴 High: {high}\n"
                 f"🟡 Medium: {medium}\n"
