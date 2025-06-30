@@ -61,18 +61,20 @@ main_menu_kb = InlineKeyboardMarkup([
 def insert_row(user_id, username, name="", cost="", priority="", status="active"):
     sheet.append_row([str(user_id), username or "", name, str(cost), priority, status])
 
-def get_user_subs(user_id):
+def get_user_subs(user_id, include_cancelled=True):
     records = sheet.get_all_records()
     user_subs = []
     for i, row in enumerate(records):
-        if str(row["user_id"]) == str(user_id) and row["status"].lower() == "active":
-            row_num = i + 2  # +1 for header, +1 for 0-indexing
-            user_subs.append({
-                "name": row["name"],
-                "cost": row["cost"],
-                "priority": row["priority"],
-                "row": row_num     # ✅ Store actual sheet row
-            })
+        if str(row["user_id"]) == str(user_id) and row["name"]:  # Check name exists
+            if row["status"].lower() == "active" or include_cancelled:
+                row_num = i + 2
+                user_subs.append({
+                    "name": row["name"],
+                    "cost": row["cost"],
+                    "priority": row["priority"],
+                    "status": row["status"].lower(),  # Add status
+                    "row": row_num
+                })
     return user_subs
 
 
@@ -120,29 +122,51 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "view":
         subs = get_user_subs(user.id)
         if not subs:
-            await query.message.reply_text("📭 No active subscriptions.")
+            await query.message.reply_text("📭 No subscriptions tracked yet.")
         else:
-            msg = "📋 Here’s a snapshot of your current *active* subscriptions:\n\n"
-            for s in subs:
-                color = "🔴" if s['priority'] == 'High' else "🟡" if s['priority'] == 'Medium' else "🟢"
-                msg += (f"🔹 *{s['name']}*\n"
-    			f"   💰 ${s['cost']} / month\n"
-    			f"   🏷️ Priority: {color} {s['priority']}\n\n"
-			)
-            msg += f"🧘 _Review. Reflect. You’re already doing great._\n\n"
-
-            await query.message.reply_text(msg, parse_mode=ParseMode.MARKDOWN)
+            active_subs = [s for s in subs if s['status'] == 'active']
+            cancelled_subs = [s for s in subs if s['status'] == 'cancelled']
+            
+            msg = "📋 Your Subscription Dashboard:\n\n"
+            
+            # Active subscriptions
+            if active_subs:
+                msg += "<b>🟢 ACTIVE SUBSCRIPTIONS:</b>\n"
+                for s in active_subs:
+                    color = "🔴" if s['priority'] == 'High' else "🟡" if s['priority'] == 'Medium' else "🟢"
+                    msg += (f"🔹 <b>{s['name']}</b>\n"
+                           f"   💰 ${s['cost']} / month\n"
+                           f"   🏷️ Priority: {color} {s['priority']}\n\n")
+            
+            # Cancelled subscriptions with strikethrough
+            if cancelled_subs:
+                msg += "\n<b>❌ CANCELLED (Your Wins!):</b>\n"
+                total_saved = 0
+                for s in cancelled_subs:
+                    total_saved += int(s['cost'])
+                    msg += f"<s>{s['name']} - ${s['cost']}/mo</s> ✅\n"
+                
+                msg += f"\n💪 <b>Total Monthly Savings: ${total_saved}</b>\n"
+                msg += f"📈 <b>Yearly Savings: ${total_saved * 12}</b>\n"
+            
+            msg += f"\n🧘 <i>Review. Reflect. You're already doing great.</i>\n"
+            
+            await query.message.reply_text(msg, parse_mode=ParseMode.HTML)
+        
         await query.message.reply_text("📍 What would you like to do now?", reply_markup=main_menu_kb)
+
 
     elif data == "cancel":
         subs = get_user_subs(user.id)
-        if not subs:
+        active_subs = [s for s in subs if s['status'] == 'active']  # Filter active only
+
+        if not active_subs:
             await query.message.reply_text("📭 No active subscriptions to cancel.")
         else:
             kb = [[InlineKeyboardButton(f"{s['name']} | ${s['cost']} | {s['priority']}",
         callback_data=f"confirm_cancel:{s['row']}:{s['name']}:{s['cost']}"
     )]
-    for s in subs]
+    for s in active_subs]
 
             await query.message.reply_text("🔻 Select a subscription you want to cancel:", reply_markup=InlineKeyboardMarkup(kb))
 
@@ -174,24 +198,38 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "benefits":
         subs = get_user_subs(user.id)
         if not subs:
-            await query.message.reply_text("📭 No active subscriptions.")
+            await query.message.reply_text("📭 No subscriptions tracked yet.")
         else:
-            total = sum(int(s['cost']) for s in subs)
-            count = len(subs)
-            high = sum(1 for s in subs if s['priority'] == 'High')
-            medium = sum(1 for s in subs if s['priority'] == 'Medium')
-            low = sum(1 for s in subs if s['priority'] == 'Low')
+            active_subs = [s for s in subs if s['status'] == 'active']
+            cancelled_subs = [s for s in subs if s['status'] == 'cancelled']
+            
+            active_total = sum(int(s['cost']) for s in active_subs) if active_subs else 0
+            saved_total = sum(int(s['cost']) for s in cancelled_subs) if cancelled_subs else 0
+            
+            count = len(active_subs)
+            high = sum(1 for s in active_subs if s['priority'] == 'High')
+            medium = sum(1 for s in active_subs if s['priority'] == 'Medium')
+            low = sum(1 for s in active_subs if s['priority'] == 'Low')
+            
             await query.message.reply_text(
                 f"📊 Your Subscription Snapshot:\n\n"
+                f"<b>Active Subscriptions:</b>\n"
                 f"• Total Active: {count}\n"
-                f"• Monthly Spend: ${total}\n"
-                f"• Priority Breakdown:\n"
+                f"• Monthly Spend: ${active_total}\n"
+                f"• Yearly Spend: ${active_total * 12}\n\n"
+                f"<b>Priority Breakdown:</b>\n"
                 f"🔴 High: {high}\n"
                 f"🟡 Medium: {medium}\n"
-                f"🟢 Low: {low}\n\n\n"
-                f"💡 _Think: what can you cut to save more?_\n",parse_mode=ParseMode.MARKDOWN
+                f"🟢 Low: {low}\n\n"
+                f"<b>Your Savings:</b>\n"
+                f"✅ Cancelled: {len(cancelled_subs)} subscriptions\n"
+                f"💰 Monthly Saved: ${saved_total}\n"
+                f"🎯 Yearly Saved: ${saved_total * 12}\n\n"
+                f"💡 <i>Think: what else can you cut to save more?</i>\n",
+                parse_mode=ParseMode.HTML
             )
         await query.message.reply_text("📍 What would you like to do now?", reply_markup=main_menu_kb)
+
 
     elif data == "cancel_abort":
         cost = context.user_data.get("cancel_cost", "0")
