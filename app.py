@@ -14,6 +14,9 @@ from telegram.ext import (
 from datetime import datetime
 import json
 
+from flask import Flask, jsonify
+import threading
+
 # Load environment variables
 load_dotenv()
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -60,6 +63,28 @@ main_menu_kb = InlineKeyboardMarkup([
 
 def insert_row(user_id, username, name="", cost="", priority="", status="active"):
     sheet.append_row([str(user_id), username or "", name, str(cost), priority, status])
+
+web_app = Flask(__name__)
+
+@web_app.route('/')
+def home():
+    return 'CancelItNowBot is running!', 200
+
+@web_app.route('/ping')
+def ping():
+    return 'pong', 200
+
+@web_app.route('/status')
+def status():
+    return jsonify({
+        'status': 'active',
+        'bot': 'CancelItNowBot',
+        'timestamp': datetime.now().isoformat()
+    }), 200
+
+def run_web_server():
+    port = int(os.environ.get('PORT', 8080))
+    web_app.run(host='0.0.0.0', port=port, debug=False)
 
 def get_user_subs(user_id, include_cancelled=True):
     records = sheet.get_all_records()
@@ -322,6 +347,13 @@ async def get_priority(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 def main():
+
+    web_thread = threading.Thread(target=run_web_server)
+    web_thread.daemon = True  # Dies when main thread dies
+    web_thread.start()
+    logging.info(f"Web server started on port {os.environ.get('PORT', 8080)}")
+
+    
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
     conv_handler = ConversationHandler(
@@ -338,6 +370,8 @@ def main():
     app.add_handler(CallbackQueryHandler(handle_buttons))  # Handle buttons LAST
     app.add_handler(CommandHandler("menu", main_menu))
 
+    # Start bot
+    logging.info("Bot starting...")
     app.run_polling()
 
 if __name__ == '__main__':
