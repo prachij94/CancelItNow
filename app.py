@@ -223,8 +223,8 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"🟢 Low: {low}\n\n"
                 f"<b>Your Savings:</b>\n"
                 f"✅ Cancelled: {len(cancelled_subs)} subscriptions\n"
-                f"💰 Monthly Saved: ${saved_total}\n"
-                f"🎯 Yearly Saved: ${saved_total * 12}\n\n"
+                f"💰 Monthly Saved: ${saved_total:.2f}\n"
+                f"🎯 Yearly Saved: ${(saved_total * 12):.2f}\n\n"
                 f"💡 <i>Think: what else can you cut to save more?</i>\n",
                 parse_mode=ParseMode.HTML
             )
