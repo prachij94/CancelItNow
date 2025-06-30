@@ -143,7 +143,7 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 msg += "\n<b>❌ CANCELLED (Your Wins!):</b>\n"
                 total_saved = 0
                 for s in cancelled_subs:
-                    total_saved += int(s['cost'])
+                    total_saved += float(s['cost'])
                     msg += f"<s>{s['name']} - ${s['cost']}/mo</s> ✅\n"
                 
                 msg += f"\n💪 <b>Total Monthly Savings: ${total_saved}</b>\n"
@@ -188,7 +188,7 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "do_cancel":
         row = context.user_data['row_index']
         name = context.user_data['cancel_name']
-        cost = int(context.user_data['cancel_cost'])
+        cost = float(context.user_data['cancel_cost'])
         sheet.update_cell(row, 6, "cancelled")
         await query.message.reply_text(
             f"✅ Subscription '{name}' has been cancelled.\n🎉 You just saved ${cost} monthly! That’s ${cost * 12} per year! 💰\n\n💪 _Keep going — smarter money is your new normal._",parse_mode=ParseMode.MARKDOWN
@@ -203,8 +203,8 @@ async def handle_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
             active_subs = [s for s in subs if s['status'] == 'active']
             cancelled_subs = [s for s in subs if s['status'] == 'cancelled']
             
-            active_total = sum(int(s['cost']) for s in active_subs) if active_subs else 0
-            saved_total = sum(int(s['cost']) for s in cancelled_subs) if cancelled_subs else 0
+            active_total = sum(float(s['cost']) for s in active_subs) if active_subs else 0
+            saved_total = sum(float(s['cost']) for s in cancelled_subs) if cancelled_subs else 0
             
             count = len(active_subs)
             high = sum(1 for s in active_subs if s['priority'] == 'High')
@@ -295,16 +295,16 @@ async def get_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def get_cost(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        cost = int(update.message.text)
+        cost = float(update.message.text)
         if cost <= 0 or cost > 100000:
             raise ValueError
         context.user_data['cost'] = cost
         kb = [[InlineKeyboardButton(text, callback_data=f"priority:{val}")] for text, val in priority_buttons]
         await update.message.reply_text("""📊 How important is this to you?\n
-_(Be honest — we won’t judge)_\n""", reply_markup=InlineKeyboardMarkup(kb),parse_mode=ParseMode.MARKDOWN)
+_(Be honest — we won't judge)_\n""", reply_markup=InlineKeyboardMarkup(kb),parse_mode=ParseMode.MARKDOWN)
         return PRIORITY
     except ValueError:
-        await update.message.reply_text("❗ Please enter a valid monthly cost (1–100000).")
+        await update.message.reply_text("❗ Please enter a valid monthly cost (0.01–100000).")  # Updated message
         return COST
 
 async def get_priority(update: Update, context: ContextTypes.DEFAULT_TYPE):
